@@ -25,7 +25,6 @@ config BCMDHD_NVRAM_PATH
 	  Path to the calibration file.
 
 config BCMDHD_WEXT
-	bool "Enable WEXT support"
 	depends on BCMDHD_4334 && CFG80211 = n
 	select WIRELESS_EXT
 	select WEXT_PRIV

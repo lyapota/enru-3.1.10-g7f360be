@@ -1,6 +1,7 @@
 #ifndef IOCONTEXT_H
 #define IOCONTEXT_H
 
+#include <linux/bitmap.h>
 #include <linux/radix-tree.h>
 #include <linux/rcupdate.h>
 
@@ -22,6 +23,9 @@ struct cfq_io_context {
 
 	struct cfq_ttime ttime;
 
+	unsigned int raising_time_left;
+	unsigned int saved_idle_window;
+
 	struct list_head queue_list;
 	struct hlist_node cic_list;
 
@@ -29,6 +33,16 @@ struct cfq_io_context {
 	void (*exit)(struct io_context *); /* called on task exit */
 
 	struct rcu_head rcu_head;
+};
+
+/*
+ * Indexes into the ioprio_changed bitmap.  A bit set indicates that
+ * the corresponding I/O scheduler needs to see a ioprio update.
+ */
+enum {
+	IOC_CFQ_IOPRIO_CHANGED,
+	IOC_BFQ_IOPRIO_CHANGED,
+	IOC_IOPRIO_CHANGED_BITS
 };
 
 /*
@@ -43,7 +57,7 @@ struct io_context {
 	spinlock_t lock;
 
 	unsigned short ioprio;
-	unsigned short ioprio_changed;
+	DECLARE_BITMAP(ioprio_changed, IOC_IOPRIO_CHANGED_BITS);
 
 #if defined(CONFIG_BLK_CGROUP) || defined(CONFIG_BLK_CGROUP_MODULE)
 	unsigned short cgroup_changed;
@@ -57,6 +71,8 @@ struct io_context {
 
 	struct radix_tree_root radix_root;
 	struct hlist_head cic_list;
+	struct radix_tree_root bfq_radix_root;
+	struct hlist_head bfq_cic_list;
 	void __rcu *ioc_data;
 };
 

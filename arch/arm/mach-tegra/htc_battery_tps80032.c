@@ -138,7 +138,9 @@ enum {
 	ATTR_SUSPEND_1_PERCENT,
 };
 
+#ifdef CONFIG_USB_FAST_CHRGE
 static int fast_charge = 0;
+#endif
 
 #if WK_MBAT_IN
 static int is_mbat_in;
@@ -518,13 +520,18 @@ static void usb_status_notifier_func(int online)
 		if ( !!(get_kernel_flag() & ALL_AC_CHARGING) ) {
 			BATT_LOG("Debug flag is set to force AC charging, fake as AC");
 			htc_batt_info.rep.charging_source = CHARGER_AC;
-		} else {
+		} else
+#ifdef CONFIG_USB_FAST_CHRGE
+                       {
 			if(fast_charge){
 				BATT_LOG("fast_charge is set to force AC charging");
 				htc_batt_info.rep.charging_source = CHARGER_AC;
-		} else
+                       } else
+#endif
 			htc_batt_info.rep.charging_source = CHARGER_USB;
+#ifdef CONFIG_USB_FAST_CHRGE
 		}
+#endif
 		break;
 	case CONNECT_TYPE_AC:
 		BATT_LOG("cable AC");
@@ -1781,6 +1788,7 @@ static void htc_battery_complete(struct device *dev)
 #endif
 }
 
+#ifdef CONFIG_USB_FAST_CHRGE
 static void reevaluate_charger()
 {
 	BATT_LOG("%s", __func__);
@@ -1809,12 +1817,13 @@ static void reevaluate_charger()
 		wake_unlock(&htc_batt_info.vbus_wake_lock);
 	}
 }
-
+#endif
 static struct dev_pm_ops htc_battery_tps80032_pm_ops = {
 	.prepare = htc_battery_prepare,
 	.complete = htc_battery_complete,
 };
 
+#ifdef CONFIG_USB_FAST_CHRGE
 static ssize_t
 fast_charge_show(struct device *dev,
 					struct device_attribute *attr,
@@ -1842,6 +1851,7 @@ fast_charge_store(struct device *dev,
 
 	return size;
 }
+#endif
 
 static struct device_attribute tps80032_batt_attrs[] = {
 	__ATTR(reboot_level, S_IRUGO, tps80032_batt_show_attributes, NULL),
@@ -1854,7 +1864,9 @@ static struct device_attribute tps80032_batt_attrs[] = {
 	__ATTR(fake_temp, S_IWUSR, NULL, tps80032_fake_temp_store_attributes),
 	__ATTR(suspend_1_percent, S_IRUGO, tps80032_batt_show_attributes, NULL),
 	__ATTR(eoc_stop, S_IWUSR, NULL, tps80032_notify_eoc_stop_attributes),
+#ifdef CONFIG_USB_FAST_CHRGE
 	__ATTR(fast_charge, S_IRUGO|S_IWUGO, fast_charge_show, fast_charge_store),
+#endif
 	};
 
 static ssize_t tps80032_batt_show_attributes(struct device *dev,

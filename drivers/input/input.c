@@ -1878,7 +1878,7 @@ int input_register_device(struct input_dev *dev)
 
 	input_wakeup_procfs_readers();
 
-	mutex_unlock(&input_mutex);		
+	mutex_unlock(&input_mutex);
 
 	return 0;
 }

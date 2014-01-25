@@ -40,7 +40,7 @@
 #include "pm.h"
 #include "sleep.h"
 #include "tegra3_emc.h"
-
+#include "tegra_pmqos.h"
 #include <mach/mfootprint.h>
 
 #define RST_DEVICES_L			0x004
@@ -845,19 +845,21 @@ static int tegra3_cpu_clk_set_rate(struct clk *c, unsigned long rate)
 	bool skip_to_backup =
 		skip && (clk_get_rate_all_locked(c) >= SKIPPER_ENGAGE_RATE);
 
+#if defined(CONFIG_BEST_TRADE_HOTPLUG)
     /* for NV platform, all G cores consume the same clk source
      *
      * to port to any other platforms,
      * pls. modify lt_rate to lt_rate[NR_CPUS] accordingly
      */
     static unsigned long lt_rate = 0;
-
+#endif
+    
 	if (c->dvfs) {
 		if (!c->dvfs->dvfs_rail)
 			return -ENOSYS;
 		else if ((!c->dvfs->dvfs_rail->reg) &&
 			  (clk_get_rate_locked(c) < rate)) {
-			WARN(1, "Increasing CPU rate while regulator is not"
+			pr_debug("Increasing CPU rate while regulator is not"
 				" ready may overclock CPU\n");
 			return -ENOSYS;
 		}
@@ -1076,7 +1078,7 @@ static int tegra3_cpu_cmplx_clk_set_parent(struct clk *c, struct clk *p)
 			return 0;
 
 		if ((rate > p->max_rate) || (rate < p->min_rate)) {
-			pr_warn("%s: No %s mode switch to %s at rate %lu\n",
+			pr_debug("%s: No %s mode switch to %s at rate %lu\n",
 				 __func__, c->name, p->name, rate);
 			return -ECANCELED;
 		}
@@ -4920,8 +4922,25 @@ static int clip_cpu_rate_limits(
 		return ret;
 	}
 	cpu_clk_lp->max_rate = freq_table[idx].frequency * 1000;
-	cpu_clk_g->min_rate = freq_table[idx-1].frequency * 1000;
+
+	ret = cpufreq_frequency_table_target(policy, freq_table,
+		T3_GMODE_MIN_FREQ, CPUFREQ_RELATION_H, &idx);
+	if (ret || !idx) {
+		pr_err("%s: LP CPU min rate %lu %s of cpufreq table", __func__,
+		       cpu_clk_lp->min_rate, ret ? "outside" : "at the bottom");
+		return ret;
+	}
+	cpu_clk_g->min_rate = freq_table[idx].frequency * 1000;
+
+	ret = cpufreq_frequency_table_target(policy, freq_table,
+		T3_SUSPEND_FREQ, CPUFREQ_RELATION_H, &idx);
+	if (ret || !idx) {
+		pr_err("%s: suspend rate %d %s of cpufreq table", __func__,
+			T3_SUSPEND_FREQ * 1000, ret ? "outside" : "at the bottom");
+		return ret;
+	}
 	data->suspend_index = idx;
+
 	return 0;
 }
 

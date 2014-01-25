@@ -1959,7 +1959,7 @@ static void endeavortd_usb_init(void)
 	android_usb_pdata.serial_number = board_serialno();
 	android_usb_pdata.products[0].product_id = android_usb_pdata.product_id;
 
-#if 0
+#ifndef CONFIG_USB_ANDROID_SD_UMS
 	if (board_mfg_mode() == BOARD_MFG_MODE_NORMAL /* normal mode */) {
 		android_usb_pdata.cdrom_lun = 0x1;
 	}
@@ -2350,8 +2350,13 @@ static int enrkey_wakeup() {
 
 static struct gpio_keys_button ENDEAVORTD_PROJECT_keys[] = {
 	[0] = GPIO_KEY(KEY_POWER, PU6, 1),
+#ifdef CONFIG_WAKEUP_VOL_KEYS
+	[1] = GPIO_KEY(KEY_VOLUMEUP, PS0, 1),
+	[2] = GPIO_KEY(KEY_VOLUMEDOWN, PW3, 1),
+#else
 	[1] = GPIO_KEY(KEY_VOLUMEUP, PS0, 0),
 	[2] = GPIO_KEY(KEY_VOLUMEDOWN, PW3, 0),
+#endif
  };
 
 static struct gpio_keys_platform_data ENDEAVORTD_PROJECT_keys_platform_data = {

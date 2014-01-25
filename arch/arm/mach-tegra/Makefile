@@ -81,9 +81,15 @@ obj-y                                   += reset.o
 obj-$(CONFIG_TEGRA_SYSTEM_DMA)          += dma.o
 obj-$(CONFIG_CPU_FREQ)                  += cpu-tegra.o
 ifeq ($(CONFIG_TEGRA_AUTO_HOTPLUG),y)
-ifeq ($(CONFIG_CPUQUIET_FRAMEWORK),y)
+ifeq ($(CONFIG_TEGRA_MPDECISION),y)
+obj-$(CONFIG_ARCH_TEGRA_3x_SOC)         += tegra_mpdecision.o
+obj-$(CONFIG_ARCH_TEGRA_3x_SOC)         += tegra_rq_stats.o
+endif
+ifeq ($(CONFIG_TEGRA_CPUQUIET),y)
 obj-$(CONFIG_ARCH_TEGRA_3x_SOC)         += cpuquiet.o
-else
+obj-$(CONFIG_ARCH_TEGRA_3x_SOC)         += tegra_rq_stats.o
+endif
+ifeq ($(CONFIG_BEST_TRADE_HOTPLUG),y)
 obj-$(CONFIG_ARCH_TEGRA_3x_SOC)         += cpu-tegra3.o
 endif
 endif

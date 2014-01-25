@@ -443,6 +443,12 @@ config TEGRA_CORE_DVFS
 	depends on TEGRA_CPU_DVFS
 	default y
 
+config TEGRA_3D_GPU_OVERCLOCK_520
+	bool "GPU 3D Overclocking"
+	default n
+	help
+	GPU 3D Overclocking option
+
 config TEGRA_IOVMM_GART
 	bool "Enable I/O virtual memory manager for GART"
 	depends on ARCH_TEGRA_2x_SOC && !TEGRA_IOMMU_GART
@@ -516,6 +522,19 @@ config TEGRA_CLUSTER_CONTROL
 	bool
 	depends on ARCH_TEGRA_HAS_DUAL_CPU_CLUSTERS
 	default y if PM_SLEEP
+
+config TEGRA_CPUQUIET
+	bool "Use cpuquiet"
+	depends on HOTPLUG_CPU && CPU_FREQ && !ARCH_CPU_PROBE_RELEASE && !ARCH_TEGRA_2x_SOC
+    select TEGRA_AUTO_HOTPLUG
+
+config TEGRA_MPDECISION
+        bool "Enable better automatic CPU hot-plugging"
+	depends on HOTPLUG_CPU && CPU_FREQ && !ARCH_CPU_PROBE_RELEASE && !ARCH_TEGRA_2x_SOC
+	help
+	  This option enables turning CPUs off/on and switching tegra
+	  high/low power CPU clusters automatically, corresponding to
+	  CPU frequency load.
 
 config TEGRA_AUTO_HOTPLUG
 	bool "Enable automatic CPU hot-plugging"
@@ -657,6 +676,13 @@ config REMOVE_HSIC_L3_STATE
 	default n
 	help
 	  Remove HSIC L3 suspend state.
+
+config TEGRA_LP1_950
+	bool "LP1 low core voltage"
+	default n
+	depends on ARCH_TEGRA_3x_SOC
+	help
+	  Enable support for LP1 Core voltage to set to lowest
 
 config HTC_HEADSET_MGR
 	tristate "HTC headset manager driver"
@@ -872,6 +898,12 @@ config SENSE_4_PLUS
 	help
 	  Support for SENSE 4 PLUS.
 
+config BUILD_FOR_SENSE
+	depends on ARCH_TEGRA_3x_SOC
+	bool "Enable special things for Sense ROMs"
+	help
+	  This will make the kernel more compatible with Sense based ROMs.
+
 config MEMORY_FOOTPRINT_DEBUGGING
 	bool "footprint for debugging"
 	default n
@@ -882,3 +914,18 @@ config HTC_PERFORMANCE_MONITOR_ALWAYS_ON
 	help
 	  ignore the debug flag KERNEL_FLAG_PM_MONITOR; always enable
 	  the htc performance monitor
+	  
+config VOLTAGE_CONTROL
+    bool "CPU voltage control"
+    default n
+    help
+      Enable CPU voltage control
+
+config USB_FAST_CHRGE
+	bool "Fast chagge option"
+	default n
+
+config WAKEUP_VOL_KEYS
+	bool "Wakeup on volkeys option"
+	default n
+	

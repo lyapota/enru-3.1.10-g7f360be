@@ -46,7 +46,7 @@
 				 DVFS_RAIL_STATS_BIN / DVFS_RAIL_STATS_SCALE)
 
 static LIST_HEAD(dvfs_rail_list);
-static DEFINE_MUTEX(dvfs_lock);
+DEFINE_MUTEX(dvfs_lock);
 static DEFINE_MUTEX(rail_disable_lock);
 
 static int dvfs_rail_update(struct dvfs_rail *rail);

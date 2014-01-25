@@ -886,6 +886,12 @@ config USB_ANDROID_MTP
 	help
 	  Provides Media Transfer Protocol (MTP) support for android gadget driver.
 
+config USB_ANDROID_SD_UMS
+	boolean "Android UMS function"
+	depends on USB_ANDROID_MTP
+	help
+	  Provides UMS mass storege Protocol (UMS) support for android gadget driver.
+
 config USB_ANDROID_RNDIS
 	boolean "Android gadget RNDIS ethernet function"
 	depends on USB_G_ANDROID

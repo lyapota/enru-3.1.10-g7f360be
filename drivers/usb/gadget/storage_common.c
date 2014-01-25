@@ -688,6 +688,7 @@ static ssize_t fsg_show_nofua(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%u\n", curlun->nofua);
 }
 
+#ifdef CONFIG_USB_ANDROID_SD_UMS
 static ssize_t fsg_show_cdrom (struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
@@ -695,6 +696,7 @@ static ssize_t fsg_show_cdrom (struct device *dev, struct device_attribute *attr
 
 	return sprintf(buf, "%d\n", curlun->cdrom);
 }
+#endif
 
 #ifdef CONFIG_USB_MSC_PROFILING
 static ssize_t fsg_show_perf(struct device *dev, struct device_attribute *attr,
@@ -852,6 +854,7 @@ static ssize_t fsg_store_file(struct device *dev, struct device_attribute *attr,
 	return (rc < 0 ? rc : count);
 }
 
+#ifdef CONFIG_USB_ANDROID_SD_UMS
 static ssize_t fsg_store_cdrom(struct device *dev, struct device_attribute *attr,
 				  const char *buf, size_t count)
 {
@@ -880,3 +883,4 @@ static ssize_t fsg_store_cdrom(struct device *dev, struct device_attribute *attr
 	up_read(filesem);
 	return rc;
 }
+#endif
