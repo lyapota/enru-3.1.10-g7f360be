@@ -620,7 +620,7 @@ int tegra_update_cpu_speed(unsigned long rate)
 {
 	int ret = 0;
 	struct cpufreq_freqs freqs;
-#ifndef CONFIG_TEGRA_MPDECISION
+#ifndef CONFIG_TEGRA_CPUQUIET
 	unsigned long rate_save = rate;
 #endif
 #if defined(CONFIG_BEST_TRADE_HOTPLUG)
@@ -641,9 +641,10 @@ int tegra_update_cpu_speed(unsigned long rate)
 	if (freqs.old == freqs.new)
 		return ret;
 #endif
+	
 #ifndef CONFIG_TEGRA_CPUQUIET
-	if (freqs.new < rate_save && rate_save >= 880000) {
 #if defined(CONFIG_BEST_TRADE_HOTPLUG)
+	if (freqs.new < rate_save && rate_save >= 880000) {
 #else
 	if (rate_save >= tegra_lpmode_freq_max()) {
 #endif
@@ -685,7 +686,7 @@ int tegra_update_cpu_speed(unsigned long rate)
 			freqs.new = rate_save;
 		}
 	}
-#endif
+#endif /* CONFIG_TEGRA_CPUQUIET */
 
 #if !defined(CONFIG_BEST_TRADE_HOTPLUG)
 	if (freqs.old == freqs.new)

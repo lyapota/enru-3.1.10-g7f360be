@@ -202,6 +202,7 @@ void cpufreq_unregister_governor(struct cpufreq_governor *governor);
 int lock_policy_rwsem_write(int cpu);
 void unlock_policy_rwsem_write(int cpu);
 
+extern DEFINE_PER_CPU(int, cpufreq_init_done);
 
 /*********************************************************************
  *                      CPUFREQ DRIVER INTERFACE                     *

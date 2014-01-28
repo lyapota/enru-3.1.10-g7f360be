@@ -60,8 +60,8 @@ static int cpu_below_core = VDD_CPU_BELOW_VDD_CORE;
 
 #define VDD_SAFE_STEP			100
 
-#define VDD_CPU_MIN				725
-#define VDD_CPU_MAX				1250
+#define VDD_CPU_MIN			725
+#define VDD_CPU_MAX			1250
 #define VDD_CORE_MIN			950
 #define VDD_CORE_MAX			1350
 
@@ -344,13 +344,12 @@ static struct dvfs core_dvfs_table[] = {
 	CORE_DVFS("cbus",   0, 1, KHZ,        1, 267000, 304000, 416000, 484000,  520000,  520000,  520000,  520000),
 	CORE_DVFS("cbus",   1, 1, KHZ,        1, 267000, 304000, 416000, 484000,  520000,  520000,  520000,  520000),
 	CORE_DVFS("cbus",   2, 1, KHZ,   200000, 267000, 304000, 416000, 484000,  520000,  520000,  520000,  600000),
-	CORE_DVFS("cbus",   3, 1, KHZ,        1,      1,      1,      1,      1,       1,  520000,  520000,  520000),
 #else
 	CORE_DVFS("cbus",   0, 1, KHZ,        1, 228000, 275000, 332000, 380000,  416000,  416000,  416000,  416000),
 	CORE_DVFS("cbus",   1, 1, KHZ,   200000, 228000, 275000, 332000, 380000,  416000,  416000,  416000,  416000),
 	CORE_DVFS("cbus",   2, 1, KHZ,   200000, 247000, 304000, 352000, 400000,  437000,  484000,  520000,  600000),
-	CORE_DVFS("cbus",   3, 1, KHZ,        1,      1,      1,      1,      1,       1,  484000,  484000,  484000),
 #endif
+	CORE_DVFS("cbus",   3, 1, KHZ,        1,      1,      1,      1,      1,       1,  484000,  484000,  484000),
 
 	CORE_DVFS("pll_c",  -1, 1, KHZ,  533000, 667000, 667000, 800000, 800000, 1066000, 1066000, 1066000, 1200000),
 

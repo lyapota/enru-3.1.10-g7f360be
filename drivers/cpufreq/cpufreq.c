@@ -33,6 +33,8 @@
 
 #include <trace/events/power.h>
 
+#include "../../arch/arm/mach-tegra/tegra_pmqos.h"
+
 /**
  * The "cpufreq driver" - the arch- or hardware-dependent low
  * level driver of CPUFreq support, and its spinlock. This lock
@@ -67,6 +69,7 @@ static DEFINE_SPINLOCK(cpufreq_driver_lock);
  */
 static DEFINE_PER_CPU(int, cpufreq_policy_cpu);
 static DEFINE_PER_CPU(struct rw_semaphore, cpu_policy_rwsem);
+DEFINE_PER_CPU(int, cpufreq_init_done);
 
 #define lock_policy_rwsem(mode, cpu)					\
 int lock_policy_rwsem_##mode						\
@@ -435,7 +438,8 @@ static ssize_t store_##file_name					\
 }
 
 store_one(scaling_min_freq, min);
-store_one(scaling_max_freq, max);
+//store_one(scaling_max_freq, max);
+//We are going to do something much more fun
 
 /**
  * show_cpuinfo_cur_freq - current CPU frequency as detected by hardware
@@ -475,18 +479,32 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 	unsigned int ret = -EINVAL;
 	char	str_governor[16];
 	struct cpufreq_policy new_policy;
-
-	ret = cpufreq_get_policy(&new_policy, policy->cpu);
-	if (ret)
-		return ret;
-
+#ifdef CONFIG_HOTPLUG_CPU
+	int cpu;
+#endif
 	ret = sscanf(buf, "%15s", str_governor);
 	if (ret != 1)
 		return -EINVAL;
 
+	// maxwen: try to set governor to all online cpus
+	// else governor will be set when cpu comes online the next time
+#ifdef CONFIG_HOTPLUG_CPU
+	for_each_online_cpu(cpu) {
+		policy = cpufreq_cpu_get(cpu);
+		if (!policy)
+			continue;
+#else
+		cpu = policy->cpu;
+#endif
+
+		ret = cpufreq_get_policy(&new_policy, cpu);
+		if (ret)
+			continue;
+		
 	if (cpufreq_parse_governor(str_governor, &new_policy.policy,
 						&new_policy.governor))
-		return -EINVAL;
+
+			continue;
 
 	/* Do not use cpufreq_set_policy here or the user_policy.max
 	   will be wrongly overridden */
@@ -496,8 +514,17 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 	policy->user_policy.governor = policy->governor;
 
 	if (ret)
+			continue;
+
+		pr_info("maxwen:store_scaling_governor setting governor %s on cpu %d ok\n", str_governor, cpu);
+#ifdef CONFIG_HOTPLUG_CPU
+		cpufreq_cpu_put(policy);
+	}
+#endif 
+
+	if (ret)
 		return ret;
-	else
+
 		return count;
 }
 
@@ -608,6 +635,34 @@ static ssize_t show_bios_limit(struct cpufreq_policy *policy, char *buf)
 			return sprintf(buf, "%u\n", limit);
 	}
 	return sprintf(buf, "%u\n", policy->cpuinfo.max_freq);
+}
+
+static ssize_t store_scaling_max_freq					
+(struct cpufreq_policy *policy, const char *buf, size_t count)		
+{									
+	unsigned int ret = -EINVAL;					
+	struct cpufreq_policy new_policy;			
+									
+	ret = cpufreq_get_policy(&new_policy, policy->cpu);		
+	if (ret)							
+		return -EINVAL;						
+									
+	ret = sscanf(buf, "%u", &new_policy.max);			
+	if (ret != 1)							
+		return -EINVAL;						
+/*Bricked:*/					
+	if (new_policy.max <= tegra_lpmode_freq_max())
+                return -EINVAL;
+/*EndBricked*/
+				
+	ret = __cpufreq_set_policy(policy, &new_policy);		
+	policy->user_policy.max = new_policy.max;	
+
+	/*htc_set_cpu_user_cap(new_policy.max);	
+	pr_info("Xmister: Set User cap to %u\n", new_policy.max);*/
+
+									
+	return ret ? ret : count;					
 }
 
 #ifdef CONFIG_VOLTAGE_CONTROL
@@ -752,6 +807,11 @@ static int cpufreq_add_dev_policy(unsigned int cpu,
 #ifdef CONFIG_SMP
 	unsigned long flags;
 	unsigned int j;
+	
+	// maxwen: we have already set the governor that we
+	// want to use in cpufreq_add_dev
+	// this makes sure that all cpus use the same governor
+#if 0
 #ifdef CONFIG_HOTPLUG_CPU
 	struct cpufreq_governor *gov;
 
@@ -761,6 +821,7 @@ static int cpufreq_add_dev_policy(unsigned int cpu,
 		pr_debug("Restoring governor %s for cpu %d\n",
 		       policy->governor->name, cpu);
 	}
+#endif
 #endif
 
 	for_each_cpu(j, policy->cpus) {
@@ -1032,6 +1093,7 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	kobject_uevent(&policy->kobj, KOBJ_ADD);
 	module_put(cpufreq_driver->owner);
 	pr_debug("initialization complete\n");
+	per_cpu(cpufreq_init_done, cpu) = 1;
 
 	return 0;
 
