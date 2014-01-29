@@ -686,7 +686,7 @@ int tegra_update_cpu_speed(unsigned long rate)
 			freqs.new = rate_save;
 		}
 	}
-#endif /* CONFIG_TEGRA_CPUQUIET */
+#endif /* !CONFIG_TEGRA_CPUQUIET */
 
 #if !defined(CONFIG_BEST_TRADE_HOTPLUG)
 	if (freqs.old == freqs.new)
