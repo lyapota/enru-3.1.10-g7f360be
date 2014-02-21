@@ -327,9 +327,11 @@ static int tegra_lp_cpu_handler(bool state, bool notifier)
                         /* catch-up with governor target speed */
                         tegra_cpu_set_speed_cap(NULL);
 
+#if DEBUG
                         pr_info(MPDEC_TAG"CPU[LP] off->on | Mask=[%d.%d%d%d%d]\n",
                                 is_lp_cluster(), ((is_lp_cluster() == 1) ? 0 : cpu_online(0)),
                                 cpu_online(1), cpu_online(2), cpu_online(3));
+#endif
                         tegra_mpdec_lpcpudata.on_time = ktime_to_ms(ktime_get());
                         tegra_mpdec_lpcpudata.online = true;
                 } else {
@@ -346,6 +348,7 @@ static int tegra_lp_cpu_handler(bool state, bool notifier)
                         tegra_mpdec_lpcpudata.online = false;
 
                         /* was this called because the freq is too high for the lpcpu? */
+#if DEBUG
                         if (!notifier)
                                 pr_info(MPDEC_TAG"CPU[LP] on->off | Mask=[%d.%d%d%d%d] | time on: %llu\n",
                                         is_lp_cluster(), ((is_lp_cluster() == 1) ? 0 : cpu_online(0)),
@@ -354,6 +357,7 @@ static int tegra_lp_cpu_handler(bool state, bool notifier)
                                 pr_info(MPDEC_TAG"CPU[LP] on->off (freq) | Mask=[%d.%d%d%d%d] | time on: %llu\n",
                                         is_lp_cluster(), ((is_lp_cluster() == 1) ? 0 : cpu_online(0)),
                                         cpu_online(1), cpu_online(2), cpu_online(3), on_time);
+#endif
                 } else {
                         pr_err(MPDEC_TAG" %s (down): clk_set_parent fail\n", __func__);
                         err = true;
@@ -485,9 +489,11 @@ static void tegra_mpdec_work_thread(struct work_struct *work)
                                 cpu_down(cpu);
                                 per_cpu(tegra_mpdec_cpudata, cpu).online = false;
                                 on_time = ktime_to_ms(ktime_get()) - per_cpu(tegra_mpdec_cpudata, cpu).on_time;
+#if DEBUG
                                 pr_info(MPDEC_TAG"CPU[%d] on->off | Mask=[%d.%d%d%d%d] | time on: %llu\n",
                                         cpu, is_lp_cluster(), ((is_lp_cluster() == 1) ? 0 : cpu_online(0)),
                                         cpu_online(1), cpu_online(2), cpu_online(3), on_time);
+#endif
                         } else if (per_cpu(tegra_mpdec_cpudata, cpu).online != cpu_online(cpu)) {
                                 pr_info(MPDEC_TAG"CPU[%d] was controlled outside of mpdecision! | pausing [%d]ms\n",
                                         cpu, tegra_mpdec_tuners_ins.pause);
@@ -505,9 +511,11 @@ static void tegra_mpdec_work_thread(struct work_struct *work)
                                 cpu_up(cpu);
                                 per_cpu(tegra_mpdec_cpudata, cpu).online = true;
                                 per_cpu(tegra_mpdec_cpudata, cpu).on_time = ktime_to_ms(ktime_get());
+#if DEBUG
                                 pr_info(MPDEC_TAG"CPU[%d] off->on | Mask=[%d.%d%d%d%d]\n",
                                         cpu, is_lp_cluster(), ((is_lp_cluster() == 1) ? 0 : cpu_online(0)),
                                         cpu_online(1), cpu_online(2), cpu_online(3));
+#endif
                         } else if (per_cpu(tegra_mpdec_cpudata, cpu).online != cpu_online(cpu)) {
                                 pr_info(MPDEC_TAG"CPU[%d] was controlled outside of mpdecision! | pausing [%d]ms\n",
                                         cpu, tegra_mpdec_tuners_ins.pause);
@@ -589,10 +597,7 @@ static void tegra_mpdec_early_suspend(struct early_suspend *h)
 	}
 
         /* main work thread can sleep now */
-        // maxwen: TODO added for debugging purposes
-        pr_info("maxwen: before cancel_delayed_work_sync(&tegra_mpdec_work)");
         cancel_delayed_work_sync(&tegra_mpdec_work);
-        pr_info("maxwen: after cancel_delayed_work_sync(&tegra_mpdec_work)");
         
         if ((lp_possible()) && (!is_lp_cluster())) {
                 if(!tegra_lp_cpu_handler(true, false))

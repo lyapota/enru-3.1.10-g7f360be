@@ -437,9 +437,10 @@ static ssize_t store_##file_name					\
 	return ret ? ret : count;					\
 }
 
+/* scaling min, max - overwrited for limit changes
 store_one(scaling_min_freq, min);
-//store_one(scaling_max_freq, max);
-//We are going to do something much more fun
+store_one(scaling_max_freq, max);
+*/
 
 /**
  * show_cpuinfo_cur_freq - current CPU frequency as detected by hardware
@@ -650,18 +651,39 @@ static ssize_t store_scaling_max_freq
 	ret = sscanf(buf, "%u", &new_policy.max);			
 	if (ret != 1)							
 		return -EINVAL;						
-/*Bricked:*/					
+
+/*limit low level max frequence*/					
 	if (new_policy.max <= tegra_lpmode_freq_max())
                 return -EINVAL;
-/*EndBricked*/
 				
 	ret = __cpufreq_set_policy(policy, &new_policy);		
 	policy->user_policy.max = new_policy.max;	
 
-	/*htc_set_cpu_user_cap(new_policy.max);	
-	pr_info("Xmister: Set User cap to %u\n", new_policy.max);*/
-
 									
+	return ret ? ret : count;					
+}
+
+static ssize_t store_scaling_min_freq
+(struct cpufreq_policy *policy, const char *buf, size_t count)
+{
+	unsigned int ret = -EINVAL;		
+	struct cpufreq_policy new_policy;
+									
+	ret = cpufreq_get_policy(&new_policy, policy->cpu);		
+	if (ret)							
+		return -EINVAL;						
+	
+	ret = sscanf(buf, "%u", &new_policy.min);
+	if (ret != 1)
+		return -EINVAL;
+
+/*limit low level min frequence*/					
+	if (new_policy.min < T3_CPU_MIN_FREQ)
+		return -EINVAL;
+				
+	ret = __cpufreq_set_policy(policy, &new_policy);		
+	policy->user_policy.min = new_policy.min;	
+	
 	return ret ? ret : count;					
 }
 
@@ -1833,7 +1855,7 @@ static int __cpufreq_set_policy(struct cpufreq_policy *data,
 			/* save old, working values */
 			struct cpufreq_governor *old_gov = data->governor;
 
-			pr_debug("governor switch\n");
+			pr_debug("governor switch %d %s -> %s\n", policy->cpu, old_gov->name, policy->governor->name);
 
 			/* end old governor */
 			if (data->governor)

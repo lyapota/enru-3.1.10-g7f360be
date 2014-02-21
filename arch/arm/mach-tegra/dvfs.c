@@ -715,12 +715,20 @@ int __init tegra_dvfs_late_init(void)
 {
 	bool connected = true;
 	struct dvfs_rail *rail;
+
+	// must be outside of dvfs_lock since it will use it too!
+#ifndef CONFIG_VOLTAGE_CONTROL
 	int cur_linear_age = tegra_get_linear_age();
+#else
+	tegra_cpu_mvs_init();
+#endif
 
 	mutex_lock(&dvfs_lock);
 
+#ifndef CONFIG_VOLTAGE_CONTROL
 	if (cur_linear_age >= 0)
 		tegra_dvfs_age_cpu(cur_linear_age);
+#endif
 
 	list_for_each_entry(rail, &dvfs_rail_list, node)
 		if (dvfs_rail_connect_to_regulator(rail))

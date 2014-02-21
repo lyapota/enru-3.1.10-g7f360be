@@ -334,7 +334,7 @@ static void edp_update_limit(void)
 static unsigned int edp_governor_speed(unsigned int requested_speed)
 {
     /* ignore EDP (regulator max output) limitation */
-    if (no_edp_limit == 1)
+    if (unlikely(no_edp_limit))
         return requested_speed;
 
 	if ((!edp_limit) || (requested_speed <= edp_limit))
@@ -457,8 +457,10 @@ static int tegra_cpu_edp_notify(
 		new_speed = edp_governor_speed(cpu_speed);
 		if (new_speed < cpu_speed) {
 			ret = tegra_cpu_set_speed_cap(NULL);
+#if 0
 			printk(KERN_DEBUG "cpu-tegra:%sforce EDP limit %u kHz"
 				"\n", ret ? " failed to " : " ", new_speed);
+#endif
 		}
 		if (!ret)
 			ret = tegra_cpu_dvfs_alter(

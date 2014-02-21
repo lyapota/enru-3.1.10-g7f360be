@@ -34,6 +34,12 @@
 #define T3_SUSPEND_FREQ     	475000
 #define T3_GMODE_MIN_FREQ     	340000
 
+// cpu and core voltage
+#define VDD_CPU_MIN			700
+#define VDD_CPU_MAX			1250
+#define VDD_CORE_MIN			900
+#define VDD_CORE_MAX			1350
+
 // used for governors ideal or idle freq
 #define GOV_IDLE_FREQ     		475000
 
@@ -77,10 +83,7 @@
 #define CAMERA_CPU_FREQ_MIN 910000
 #define CAMERA_ONLINE_CPUS_MIN 2
 
-extern unsigned int tegra_pmqos_cpu_freq_limits[];
-extern unsigned int tegra_pmqos_cpu_freq_limits_min[];
 extern unsigned int tegra_cpu_freq_max(unsigned int cpu);
-extern unsigned int tegra_get_suspend_boost_freq(void);
 extern unsigned int tegra_lpmode_freq_max(void);
 extern void tegra_lpmode_freq_max_changed(void);
 
