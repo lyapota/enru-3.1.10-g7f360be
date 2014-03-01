@@ -63,20 +63,23 @@ static int cpu_below_core = VDD_CPU_BELOW_VDD_CORE;
 
 #ifdef CONFIG_VOLTAGE_CONTROL
 #define VDD_MAX_CHANGE			200
-#define VDD_CPU_DEFAULT_MVS		-25
+#define VDD_CPU_DEFAULT_MVS		-50
 #define GPU_MAX_FREQ			600
 
 static int curr_cpu_vdd_change = 0;
 #endif
 
 #ifdef CONFIG_TEGRA_GPU_OC
-static bool gpu_quick_oc_enabled = false;
+static int gpu_quick_oc_enabled = 0;
 #ifdef CONFIG_TEGRA_3D_GPU_OVERCLOCK_520
-static const char* gpu_default= "228 247 285 332 400 484 484 484 484";
-static const char* gpu_quick_oc="247 267 304 380 416 520 520 520 520";
+static int gpu_quick_oc_max = 1;
+static const char* gpu_quick_oc_0="228 247 285 332 400 484 484 484 484";
+static const char* gpu_quick_oc_1="247 267 304 380 400 520 520 520 520";
 #else
-static const char* gpu_default= "200 228 275 332 380 416 416 416 416";
-static const char* gpu_quick_oc="228 247 285 332 400 484 484 484 484";
+static int gpu_quick_oc_max = 2;
+static const char* gpu_quick_oc_0="200 228 275 332 380 416 416 416 416";
+static const char* gpu_quick_oc_1="228 247 285 332 400 484 484 484 484";
+static const char* gpu_quick_oc_2="247 267 304 380 400 520 520 520 520";
 #endif
 static const unsigned long pll_c_default[MAX_DVFS_FREQS] = { 533000, 667000, 667000, 800000, 800000, 1066000, 1066000, 1066000, 1200000 };
 #endif
@@ -107,7 +110,20 @@ static struct dvfs_rail *tegra3_dvfs_rails[] = {
 
 static int tegra3_get_core_floor_mv(int cpu_mv)
 {
-#ifndef CONFIG_TEGRA_3D_GPU_OVERCLOCK_520
+#if defined(CONFIG_TEGRA_3D_GPU_OVERCLOCK_520) || defined(CONFIG_TEGRA_GPU_OC)
+	int i;
+
+	for (i=0; i<ARRAY_SIZE(core_millivolts) && core_millivolts[i] < cpu_mv; i++);
+	if (i<ARRAY_SIZE(core_millivolts)){
+		if (core_millivolts[i] > 1300)
+			return 1300;
+		return core_millivolts[i];
+	}
+
+	/* fail-safe */
+	if (cpu_mv <= VDD_CPU_MAX)
+		return VDD_CORE_MAX;
+#else
 	if (cpu_mv < 800)
 		return  950;
 	if (cpu_mv < 900)
@@ -123,19 +139,6 @@ static int tegra3_get_core_floor_mv(int cpu_mv)
 		return 1200;
 	if (cpu_mv <= 1250)
 		return 1300;
-#else
-	int i;
-
-	for (i=0; i<ARRAY_SIZE(core_millivolts) && core_millivolts[i] < cpu_mv; i++);
-	if (i<ARRAY_SIZE(core_millivolts)){
-		if (core_millivolts[i] > 1300)
-			return 1300;
-		return core_millivolts[i];
-	}
-
-	/* fail-safe */
-	if (cpu_mv <= VDD_CPU_MAX)
-		return VDD_CORE_MAX;
 #endif
 	BUG();
 }
@@ -1442,15 +1445,17 @@ static ssize_t gpu_quick_oc_store(struct kobject *kobj, struct kobj_attribute *a
 	
 	ret = sscanf(buf, "%d", &n);
 
-	if ((ret != 1) || n < 0 || n > 1)
+	if ((ret != 1) || n < 0 || n > gpu_quick_oc_max)
 		return -EINVAL;
 
 	gpu_quick_oc_enabled = n;
 	
-	if (!gpu_quick_oc_enabled)
-		gpu_oc_store(kobj, attr, gpu_default, strlen(gpu_default));
+	if (gpu_quick_oc_enabled == 1)
+		gpu_oc_store(kobj, attr, gpu_quick_oc_1, strlen(gpu_quick_oc_1));
+	else if (gpu_quick_oc_enabled == 2)
+		gpu_oc_store(kobj, attr, gpu_quick_oc_2, strlen(gpu_quick_oc_2));
 	else
-		gpu_oc_store(kobj, attr, gpu_quick_oc, strlen(gpu_quick_oc));
+		gpu_oc_store(kobj, attr, gpu_quick_oc_0, strlen(gpu_quick_oc_0));
 	
 	return count;
 }

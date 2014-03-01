@@ -262,26 +262,27 @@ cpufreq_freq_attr_ro(throttle);
 #ifdef CONFIG_TEGRA_EDP_LIMITS
 
 /* disable edp limitations */
-unsigned int no_edp_limit = 0;
+static unsigned int disable_edp_limit = 0;
 
-static int no_edp_limit_set(const char *arg, const struct kernel_param *kp)
+static int disable_edp_limit_set(const char *arg, const struct kernel_param *kp)
 {
-	int ret = param_set_int(arg, kp);
-	if (ret != 0)
-		pr_warn(" Unable to set no_edp_limit");
+	int ret = param_set_uint(arg, kp);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
-static int no_edp_limit_get(char *buffer, const struct kernel_param *kp)
+static int disable_edp_limit_get(char *buffer, const struct kernel_param *kp)
 {
-	return param_get_int(buffer, kp);
+	return param_get_uint(buffer, kp);
 }
-static struct kernel_param_ops no_edp_limit_ops = {
-	.set = no_edp_limit_set,
-	.get = no_edp_limit_get,
+static struct kernel_param_ops disable_edp_limit_ops = {
+	.set = disable_edp_limit_set,
+	.get = disable_edp_limit_get,
 };
 
-module_param_cb(no_edp_limit, &no_edp_limit_ops, &no_edp_limit, 0644);
+module_param_cb(disable_edp_limit, &disable_edp_limit_ops, &disable_edp_limit, 0644);
 
 static const struct tegra_edp_limits *cpu_edp_limits;
 static int cpu_edp_limits_size;
@@ -334,7 +335,7 @@ static void edp_update_limit(void)
 static unsigned int edp_governor_speed(unsigned int requested_speed)
 {
     /* ignore EDP (regulator max output) limitation */
-    if (unlikely(no_edp_limit))
+    if (disable_edp_limit == 1)
         return requested_speed;
 
 	if ((!edp_limit) || (requested_speed <= edp_limit))
