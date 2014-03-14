@@ -92,6 +92,11 @@ endif
 ifeq ($(CONFIG_BEST_TRADE_HOTPLUG),y)
 obj-$(CONFIG_ARCH_TEGRA_3x_SOC)         += cpu-tegra3.o
 endif
+ifeq ($(CONFIG_INTELLI_PLUG),y)
+obj-$(CONFIG_ARCH_TEGRA_3x_SOC)         += intelli_plug.o
+obj-$(CONFIG_RQ_STATS)			+= rq_stats.o
+obj-$(CONFIG_ARCH_TEGRA_3x_SOC)         += cpu-tegra3.o
+endif
 endif
 obj-$(CONFIG_TEGRA_PCI)                 += pcie.o
 obj-$(CONFIG_USB_SUPPORT)               += usb_phy.o

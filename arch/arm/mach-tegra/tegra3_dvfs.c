@@ -45,11 +45,12 @@ static const int cpu_millivolts_aged[MAX_DVFS_FREQS] = CPU_MILLIVOLTS;
 
 static const unsigned int cpu_cold_offs_mhz[MAX_DVFS_FREQS] = {
 	 50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50};
-
+	 
 #define CORE_MILIVOLTS {\
-	900, 950, 1000, 1050, 1100, 1150, 1200, 1250, 1300};
-
-static const int core_millivolts[MAX_DVFS_FREQS] = CORE_MILIVOLTS;
+	950, 1000, 1050, 1100, 1150, 1200, 1250, 1300, 1350};
+	
+static int core_millivolts[MAX_DVFS_FREQS] = CORE_MILIVOLTS;
+static const int core_millivolts_aged[MAX_DVFS_FREQS] = CORE_MILIVOLTS;
 	
 #define KHZ 1000
 #define MHZ 1000000
@@ -62,25 +63,30 @@ static int cpu_below_core = VDD_CPU_BELOW_VDD_CORE;
 #define VDD_SAFE_STEP			100
 
 #ifdef CONFIG_VOLTAGE_CONTROL
-#define VDD_MAX_CHANGE			200
-#define VDD_CPU_DEFAULT_MVS		-50
+#define VDD_MAX_CHANGE			100
+#define VDD_CPU_DEFAULT_MVS		0
+#define VDD_CORE_DEFAULT_MVS		0
 #define GPU_MAX_FREQ			600
 
 static int curr_cpu_vdd_change = 0;
+static int curr_core_vdd_change = 0;
+
+static int core_quick_mv_enabled = 0;
+static int core_quick_mv_max = 2;
+
+static const char* core_quick_mv_0="0";
+static const char* core_quick_mv_1="-25";
+static const char* core_quick_mv_2="-50";
 #endif
 
 #ifdef CONFIG_TEGRA_GPU_OC
-static int gpu_quick_oc_enabled = 0;
-#ifdef CONFIG_TEGRA_3D_GPU_OVERCLOCK_520
-static int gpu_quick_oc_max = 1;
-static const char* gpu_quick_oc_0="228 247 285 332 400 484 484 484 484";
-static const char* gpu_quick_oc_1="247 267 304 380 400 520 520 520 520";
-#else
+static int gpu_quick_oc_enabled = 1;
 static int gpu_quick_oc_max = 2;
+
 static const char* gpu_quick_oc_0="200 228 275 332 380 416 416 416 416";
 static const char* gpu_quick_oc_1="228 247 285 332 400 484 484 484 484";
 static const char* gpu_quick_oc_2="247 267 304 380 400 520 520 520 520";
-#endif
+
 static const unsigned long pll_c_default[MAX_DVFS_FREQS] = { 533000, 667000, 667000, 800000, 800000, 1066000, 1066000, 1066000, 1200000 };
 #endif
 
@@ -110,7 +116,7 @@ static struct dvfs_rail *tegra3_dvfs_rails[] = {
 
 static int tegra3_get_core_floor_mv(int cpu_mv)
 {
-#if defined(CONFIG_TEGRA_3D_GPU_OVERCLOCK_520) || defined(CONFIG_TEGRA_GPU_OC)
+#if defined(CONFIG_TEGRA_3D_GPU_OVERCLOCK_484) || defined(CONFIG_TEGRA_GPU_OC)
 	int i;
 
 	for (i=0; i<ARRAY_SIZE(core_millivolts) && core_millivolts[i] < cpu_mv; i++);
@@ -306,7 +312,7 @@ static struct dvfs core_dvfs_table[] = {
 	CORE_DVFS("vi",     2, 1, KHZ,        1, 219000, 267000, 300000, 371000,  409000,  425000,  425000,  425000),
 	CORE_DVFS("vi",     3, 1, KHZ,        1,      1,      1,      1,      1,       1,  470000,  470000,  470000),
 
-#ifdef CONFIG_TEGRA_3D_GPU_OVERCLOCK_520
+#ifdef CONFIG_TEGRA_3D_GPU_OVERCLOCK_484
 	CORE_DVFS("vde",    0, 1, KHZ,        1, 247000, 285000, 332000, 400000,  484000,  484000,  484000,  484000),
 	CORE_DVFS("mpe",    0, 1, KHZ,        1, 247000, 285000, 332000, 400000,  484000,  484000,  484000,  484000),
 	CORE_DVFS("2d",     0, 1, KHZ,        1, 247000, 285000, 332000, 400000,  484000,  484000,  484000,  484000),
@@ -361,7 +367,7 @@ static struct dvfs core_dvfs_table[] = {
 	CORE_DVFS("host1x", 2, 1, KHZ,   100000, 152000, 188000, 222000, 254000,  267000,  267000,  267000,  300000),
 	CORE_DVFS("host1x", 3, 1, KHZ,        1,      1,      1,      1,      1,       1,  242000,  242000,  242000),
 
-#ifdef CONFIG_TEGRA_3D_GPU_OVERCLOCK_520
+#ifdef CONFIG_TEGRA_3D_GPU_OVERCLOCK_484
 	CORE_DVFS("cbus",   0, 1, KHZ,        1, 247000, 285000, 332000, 400000,  484000,  484000,  484000,  484000),
 	CORE_DVFS("cbus",   1, 1, KHZ,   228000, 247000, 285000, 332000, 400000,  484000,  484000,  484000,  484000),
 #else
@@ -741,6 +747,32 @@ static void tegra_adjust_cpu_mvs(int mvs)
 #endif
 }
 
+static void tegra_adjust_core_mvs(int mvs)
+{
+	int i;
+
+	BUG_ON(ARRAY_SIZE(core_millivolts) != ARRAY_SIZE(core_millivolts_aged));
+
+	mutex_lock(&dvfs_lock);
+
+	pr_info("tegra_adjust_core_mvs: mvs %d\n", mvs);
+	curr_core_vdd_change = mvs;
+	for (i = 0; i < ARRAY_SIZE(core_millivolts); i++){
+		int old_val = core_millivolts_aged[i];
+		int new_val = old_val + mvs;
+		
+		if (new_val < VDD_CORE_MIN)
+			new_val = VDD_CORE_MIN;
+		 
+		if(new_val > VDD_CORE_MAX)
+			new_val = VDD_CORE_MAX;
+						
+		core_millivolts[i] = new_val;
+	}
+
+	mutex_unlock(&dvfs_lock);
+}
+
 /**
  * Adjust VDD_CPU to offset aging.
  * 25mV for 1st year
@@ -784,10 +816,33 @@ static void tegra_reset_cpu_mvs(void)
 	mutex_unlock(&dvfs_lock);
 }
 
+static void tegra_reset_core_mvs(void)
+{
+	int i;
+
+	mutex_lock(&dvfs_lock);
+
+	pr_info("tegra_reset_core_mvs\n");
+	BUG_ON(ARRAY_SIZE(core_millivolts) != ARRAY_SIZE(core_millivolts_aged));
+	
+	curr_core_vdd_change = 0;
+	for (i = 0; i < ARRAY_SIZE(core_millivolts); i++){
+		core_millivolts[i] = core_millivolts_aged[i];
+	}
+	
+	mutex_unlock(&dvfs_lock);
+}
+
 void tegra_cpu_mvs_init()
 {
 	int default_uv = VDD_CPU_DEFAULT_MVS;
 	tegra_adjust_cpu_mvs(default_uv);
+}
+
+void tegra_core_mvs_init()
+{
+	int default_uv = VDD_CORE_DEFAULT_MVS;
+	tegra_adjust_core_mvs(default_uv);
 }
 
 struct mv_struct {
@@ -832,12 +887,30 @@ static unsigned int cpu_mv_init(void)
 	return get_mv_table_for_name("cpu_g", 0);
 }
 
+static unsigned int core_mv_init(void) 
+{
+	return get_mv_table_for_name("3d", 0);
+}
+
 ssize_t show_cpu_mv_table(char *buf)
 {
 	int num, i = 0;
 	char *out = buf;
 	/* find how many actual entries there are */
 	num = cpu_mv_init();
+
+	for (i = 0; i < num; i++) {
+		out += sprintf(out, "%lumhz: %u mV\n", mv_list[i].mhz, mv_list[i].mv_table[0]);
+	}
+	return out - buf;
+}
+
+ssize_t show_core_mv_table(char *buf)
+{
+	int num, i = 0;
+	char *out = buf;
+	/* find how many actual entries there are */
+	num = core_mv_init();
 
 	for (i = 0; i < num; i++) {
 		out += sprintf(out, "%lumhz: %u mV\n", mv_list[i].mhz, mv_list[i].mv_table[0]);
@@ -1276,6 +1349,7 @@ static ssize_t cpu_millivolts_store(struct kobject *kobj, struct kobj_attribute 
 {
 	int mv_change = 0;
 	int ret = 0;
+	struct clk *cpu_clk_g = tegra_get_clock_by_name("cpu_g");
 	
 	ret = sscanf(buf, "%d", &mv_change);
 	if (ret != 1)
@@ -1291,6 +1365,9 @@ static ssize_t cpu_millivolts_store(struct kobject *kobj, struct kobj_attribute 
 				
 	pr_info("cpu_millivolts_store: mv_change %d\n", mv_change);
 	tegra_adjust_cpu_mvs(mv_change);
+
+	/* update dvfs table here */
+	cpu_clk_g->dvfs->millivolts = cpu_millivolts;
 
 	return count;
 }
@@ -1317,6 +1394,99 @@ cpu_millivolts_new_store(struct kobject *kobj, struct kobj_attribute *attr,
 static struct kobj_attribute cpu_millivolts_new_attribute =
 	__ATTR(cpu_millivolts_new, 0644, cpu_millivolts_new_show, cpu_millivolts_new_store);
 
+static ssize_t core_millivolts_show(struct kobject *kobj, struct kobj_attribute *attr,
+		    char *buf)
+{
+	char *out = buf;
+	
+	out += sprintf(out, "current mv change %d\n", curr_core_vdd_change);
+	out += show_core_mv_table(out);
+
+	return out - buf;
+}
+
+static ssize_t core_millivolts_store(struct kobject *kobj, struct kobj_attribute *attr,
+		     const char *buf, size_t count)
+{
+	struct clk *c;
+	struct dvfs *d;
+	int mv_change = 0;
+	int ret = 0;
+	int i = 0;
+	int soc_speedo_id = tegra_soc_speedo_id();
+	int core_process_id = tegra_core_process_id();	
+	
+	ret = sscanf(buf, "%d", &mv_change);
+	if (ret != 1)
+		return -EINVAL;
+	
+	if(mv_change == 0){
+		tegra_reset_core_mvs();
+		return count;
+	}
+	
+	if(mv_change > VDD_MAX_CHANGE || mv_change < -VDD_MAX_CHANGE)
+		return -EINVAL;
+				
+	pr_info("core_millivolts_store: mv_change %d\n", mv_change);
+	tegra_adjust_core_mvs(mv_change);
+
+	/* update dvfs table here */
+
+	mutex_lock(&dvfs_lock);
+	for (i = 0; i <  ARRAY_SIZE(core_dvfs_table); i++) {
+		d = &core_dvfs_table[i];
+		if (!match_dvfs_one(d, soc_speedo_id, core_process_id))
+			continue;
+
+		c = tegra_get_clock_by_name(d->clk_name);
+		if (!c->dvfs)
+			continue;
+		if (!(c->flags & PERIPH_EMC_ENB) && d->auto_dvfs) {
+			c->dvfs->millivolts = core_millivolts;
+		}
+	}
+	mutex_unlock(&dvfs_lock);
+
+	return count;
+}
+
+static struct kobj_attribute core_millivolts_attribute =
+	__ATTR(core_millivolts, 0644, core_millivolts_show, core_millivolts_store);
+
+static ssize_t core_quick_mv_show(struct kobject *kobj, struct kobj_attribute *attr,
+		    char *buf){
+	char *out = buf;
+	
+	out += sprintf(out, "%u\n", core_quick_mv_enabled);
+
+	return out - buf;
+}
+
+static ssize_t core_quick_mv_store(struct kobject *kobj, struct kobj_attribute *attr,
+		     const char *buf, size_t count){
+	int ret;
+	unsigned int n;
+	
+	ret = sscanf(buf, "%d", &n);
+
+	if ((ret != 1) || n < 0 || n > core_quick_mv_max)
+		return -EINVAL;
+
+	core_quick_mv_enabled = n;
+	
+	if (core_quick_mv_enabled == 1)
+		core_millivolts_store(kobj, attr, core_quick_mv_1, strlen(core_quick_mv_1));
+	else if (core_quick_mv_enabled == 2)
+		core_millivolts_store(kobj, attr, core_quick_mv_2, strlen(core_quick_mv_2));
+	else
+		core_millivolts_store(kobj, attr, core_quick_mv_0, strlen(core_quick_mv_0));
+	
+	return count;
+}
+
+static struct kobj_attribute core_quick_mv_attribute =
+	__ATTR(core_quick_mv, 0644, core_quick_mv_show, core_quick_mv_store);
 #endif
 
 #ifdef CONFIG_TEGRA_GPU_OC
@@ -1469,6 +1639,8 @@ const struct attribute *dvfs_attributes[] = {
 #ifdef CONFIG_VOLTAGE_CONTROL
 	&cpu_millivolts_attribute.attr,
 	&cpu_millivolts_new_attribute.attr,
+	&core_millivolts_attribute.attr,
+	&core_quick_mv_attribute.attr,
 #endif
 #ifdef CONFIG_TEGRA_GPU_OC
 	&gpu_oc_attribute.attr,

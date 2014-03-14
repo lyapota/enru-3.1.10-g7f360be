@@ -721,6 +721,7 @@ int __init tegra_dvfs_late_init(void)
 	int cur_linear_age = tegra_get_linear_age();
 #else
 	tegra_cpu_mvs_init();
+	tegra_core_mvs_init();
 #endif
 
 	mutex_lock(&dvfs_lock);

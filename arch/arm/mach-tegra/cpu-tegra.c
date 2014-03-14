@@ -626,7 +626,7 @@ int tegra_update_cpu_speed(unsigned long rate)
 #ifndef CONFIG_TEGRA_CPUQUIET
 	unsigned long rate_save = rate;
 #endif
-#if defined(CONFIG_BEST_TRADE_HOTPLUG)
+#if defined(CONFIG_BEST_TRADE_HOTPLUG) || defined(CONFIG_INTELLI_PLUG)
 	int orig_nice = 0;
 #endif
 #ifdef CONFIG_TEGRA_MPDECISION
@@ -640,7 +640,7 @@ int tegra_update_cpu_speed(unsigned long rate)
 	if (!IS_ERR_VALUE(rate))
 		freqs.new = rate / 1000;
 
-#if defined(CONFIG_BEST_TRADE_HOTPLUG)
+#if defined(CONFIG_BEST_TRADE_HOTPLUG) || defined(CONFIG_INTELLI_PLUG)
 	if (freqs.old == freqs.new)
 		return ret;
 #endif
@@ -652,7 +652,7 @@ int tegra_update_cpu_speed(unsigned long rate)
 	if (rate_save >= tegra_lpmode_freq_max()) {
 #endif
 		if (is_lp_cluster()) {
-#if defined(CONFIG_BEST_TRADE_HOTPLUG)
+#if defined(CONFIG_BEST_TRADE_HOTPLUG) || defined(CONFIG_INTELLI_PLUG)
 			orig_nice = task_nice(current);
 
 			if(can_nice(current, -20)) {
@@ -691,7 +691,7 @@ int tegra_update_cpu_speed(unsigned long rate)
 	}
 #endif /* !CONFIG_TEGRA_CPUQUIET */
 
-#if !defined(CONFIG_BEST_TRADE_HOTPLUG)
+#if !defined(CONFIG_BEST_TRADE_HOTPLUG) && !defined(CONFIG_INTELLI_PLUG)
 	if (freqs.old == freqs.new)
 		return ret;
 #endif
@@ -747,7 +747,7 @@ int tegra_update_cpu_speed(unsigned long rate)
 	}
         MF_DEBUG("00UP0046");
 error:
-#if defined(CONFIG_BEST_TRADE_HOTPLUG)
+#if defined(CONFIG_BEST_TRADE_HOTPLUG) || defined(CONFIG_INTELLI_PLUG)
 	if (orig_nice != task_nice(current)) {
 		if (can_nice(current, orig_nice)) {
 			set_user_nice(current, orig_nice);
@@ -2240,7 +2240,7 @@ static int CAP_CPU_FREQ_TARGET = 1700000;
 static int tegra_pm_notify(struct notifier_block *nb, unsigned long event,
 	void *dummy)
 {
-#if defined(CONFIG_BEST_TRADE_HOTPLUG)
+#if defined(CONFIG_BEST_TRADE_HOTPLUG) || defined(CONFIG_INTELLI_PLUG)
   int cpu;
 #endif
 	if (event == PM_SUSPEND_PREPARE) {
@@ -2252,7 +2252,7 @@ static int tegra_pm_notify(struct notifier_block *nb, unsigned long event,
 		tegra_auto_hotplug_governor(
 			freq_table[suspend_index].frequency, true);
 		mutex_unlock(&tegra_cpu_lock);
-#if defined(CONFIG_BEST_TRADE_HOTPLUG)
+#if defined(CONFIG_BEST_TRADE_HOTPLUG) || defined(CONFIG_INTELLI_PLUG)
 		for_each_online_cpu(cpu) {
 			if(cpu==0)
 				continue;
@@ -2315,14 +2315,14 @@ static int tegra_cpu_init(struct cpufreq_policy *policy)
 	cpumask_copy(policy->related_cpus, cpu_possible_mask);
 
 	if (policy->cpu == 0) {
-#ifndef CONFIG_BEST_TRADE_HOTPLUG
+#if !defined(CONFIG_BEST_TRADE_HOTPLUG) && !defined(CONFIG_INTELLI_PLUG)
 		policy->max = BOOST_CPU_FREQ_MIN;
 		policy->min = T3_CPU_MIN_FREQ;
 		pr_info("cpu-tegra_cpufreq: restored cpu[%d]'s freq: %u\n", policy->cpu, policy->max);
 #endif
 		register_pm_notifier(&tegra_cpu_pm_notifier);
 	}
-#ifndef CONFIG_BEST_TRADE_HOTPLUG
+#if !defined(CONFIG_BEST_TRADE_HOTPLUG) && !defined(CONFIG_INTELLI_PLUG)
     /* restore saved cpu frequency */
 	if (policy->cpu > 0) {
 		policy->max = BOOST_CPU_FREQ_MIN;
