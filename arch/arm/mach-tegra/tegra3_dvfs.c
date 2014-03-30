@@ -46,8 +46,18 @@ static const int cpu_millivolts_aged[MAX_DVFS_FREQS] = CPU_MILLIVOLTS;
 static const unsigned int cpu_cold_offs_mhz[MAX_DVFS_FREQS] = {
 	 50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50};
 	 
+#ifdef CONFIG_VOLTAGE_CONTROL_CORE_50
+#define CORE_MILIVOLTS {\
+	900, 950, 1000, 1050, 1100, 1150, 1200, 1250, 1300};
+#else
+#ifdef CONFIG_VOLTAGE_CONTROL_CORE_25
+#define CORE_MILIVOLTS {\
+	925, 975, 1025, 1075, 1125, 1175, 1225, 1275, 1325};
+#else
 #define CORE_MILIVOLTS {\
 	950, 1000, 1050, 1100, 1150, 1200, 1250, 1300, 1350};
+#endif
+#endif
 	
 static int core_millivolts[MAX_DVFS_FREQS] = CORE_MILIVOLTS;
 static const int core_millivolts_aged[MAX_DVFS_FREQS] = CORE_MILIVOLTS;
@@ -63,24 +73,41 @@ static int cpu_below_core = VDD_CPU_BELOW_VDD_CORE;
 #define VDD_SAFE_STEP			100
 
 #ifdef CONFIG_VOLTAGE_CONTROL
+
 #define VDD_MAX_CHANGE			100
-#define VDD_CPU_DEFAULT_MVS		0
-#define VDD_CORE_DEFAULT_MVS		0
 #define GPU_MAX_FREQ			600
-
-static int curr_cpu_vdd_change = 0;
-static int curr_core_vdd_change = 0;
-
-static int core_quick_mv_enabled = 0;
-static int core_quick_mv_max = 2;
-
-static const char* core_quick_mv_0="0";
-static const char* core_quick_mv_1="-25";
-static const char* core_quick_mv_2="-50";
+#define VDD_CORE_DEFAULT_MVS		0
+#ifdef CONFIG_VOLTAGE_CONTROL_CPU_50
+#define VDD_CPU_DEFAULT_MVS		-50
+#else
+#ifdef CONFIG_VOLTAGE_CONTROL_CPU_25
+#define VDD_CPU_DEFAULT_MVS		-25
+#else
+#define VDD_CPU_DEFAULT_MVS		0
+#endif
 #endif
 
+static int curr_cpu_vdd_change = 0;
+
+#ifdef CONFIG_VOLTAGE_CONTROL_CORE_50
+static int curr_core_vdd_change = -50;
+#else
+#ifdef CONFIG_VOLTAGE_CONTROL_CORE_25
+static int curr_core_vdd_change = -25;
+#else
+static int curr_core_vdd_change = 0;
+#endif
+#endif
+
+#endif
+
+
 #ifdef CONFIG_TEGRA_GPU_OC
+#ifdef CONFIG_TEGRA_3D_GPU_OVERCLOCK_484
 static int gpu_quick_oc_enabled = 1;
+#else
+static int gpu_quick_oc_enabled = 0;
+#endif
 static int gpu_quick_oc_max = 2;
 
 static const char* gpu_quick_oc_0="200 228 275 332 380 416 416 416 416";
@@ -1453,40 +1480,6 @@ static ssize_t core_millivolts_store(struct kobject *kobj, struct kobj_attribute
 
 static struct kobj_attribute core_millivolts_attribute =
 	__ATTR(core_millivolts, 0644, core_millivolts_show, core_millivolts_store);
-
-static ssize_t core_quick_mv_show(struct kobject *kobj, struct kobj_attribute *attr,
-		    char *buf){
-	char *out = buf;
-	
-	out += sprintf(out, "%u\n", core_quick_mv_enabled);
-
-	return out - buf;
-}
-
-static ssize_t core_quick_mv_store(struct kobject *kobj, struct kobj_attribute *attr,
-		     const char *buf, size_t count){
-	int ret;
-	unsigned int n;
-	
-	ret = sscanf(buf, "%d", &n);
-
-	if ((ret != 1) || n < 0 || n > core_quick_mv_max)
-		return -EINVAL;
-
-	core_quick_mv_enabled = n;
-	
-	if (core_quick_mv_enabled == 1)
-		core_millivolts_store(kobj, attr, core_quick_mv_1, strlen(core_quick_mv_1));
-	else if (core_quick_mv_enabled == 2)
-		core_millivolts_store(kobj, attr, core_quick_mv_2, strlen(core_quick_mv_2));
-	else
-		core_millivolts_store(kobj, attr, core_quick_mv_0, strlen(core_quick_mv_0));
-	
-	return count;
-}
-
-static struct kobj_attribute core_quick_mv_attribute =
-	__ATTR(core_quick_mv, 0644, core_quick_mv_show, core_quick_mv_store);
 #endif
 
 #ifdef CONFIG_TEGRA_GPU_OC
@@ -1640,7 +1633,6 @@ const struct attribute *dvfs_attributes[] = {
 	&cpu_millivolts_attribute.attr,
 	&cpu_millivolts_new_attribute.attr,
 	&core_millivolts_attribute.attr,
-	&core_quick_mv_attribute.attr,
 #endif
 #ifdef CONFIG_TEGRA_GPU_OC
 	&gpu_oc_attribute.attr,

@@ -37,7 +37,7 @@
 // cpu and core voltage
 #define VDD_CPU_MIN			725
 #define VDD_CPU_MAX			1250
-#define VDD_CORE_MIN			900
+#define VDD_CORE_MIN			950
 #define VDD_CORE_MAX			1350
 
 // used for governors ideal or idle freq

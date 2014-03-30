@@ -720,8 +720,12 @@ int __init tegra_dvfs_late_init(void)
 #ifndef CONFIG_VOLTAGE_CONTROL
 	int cur_linear_age = tegra_get_linear_age();
 #else
+#if defined(CONFIG_VOLTAGE_CONTROL_CPU_50) || defined(CONFIG_VOLTAGE_CONTROL_CPU_25)
 	tegra_cpu_mvs_init();
+#endif
+#if !defined(CONFIG_VOLTAGE_CONTROL_CORE_50) && !defined(CONFIG_VOLTAGE_CONTROL_CORE_25)
 	tegra_core_mvs_init();
+#endif
 #endif
 
 	mutex_lock(&dvfs_lock);

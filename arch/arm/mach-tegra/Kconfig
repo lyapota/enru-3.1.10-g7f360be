@@ -921,6 +921,30 @@ config VOLTAGE_CONTROL
     help
       Enable CPU voltage control
 
+config VOLTAGE_CONTROL_CPU_50
+    bool "CPU voltage -50"
+    default n
+    help
+      Enable CPU voltage -50 to all freq from the box
+
+config VOLTAGE_CONTROL_CORE_50
+    bool "CORE voltage -50"
+    default n
+    help
+      Enable CORE voltage -50 to all freq from the box
+
+config VOLTAGE_CONTROL_CPU_25
+    bool "CPU voltage -50"
+    default n
+    help
+      Enable CPU voltage -50 to all freq from the box
+
+config VOLTAGE_CONTROL_CORE_25
+    bool "CORE voltage -25"
+    default n
+    help
+      Enable CORE voltage -25 to all freq from the box
+
 config USB_FAST_CHRGE
 	bool "Fast chagge option"
 	default n
